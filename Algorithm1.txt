@@ -1,0 +1,13 @@
+Input: graph H with vertices { v1, ..., vn}, graph G
+Output: vertex-models \phi(v1), ..., \phi(vn) of an H-minor in G
+
+Assign all vertex gropus \phi(v1), ..., \phi(vn) to G
+while stopping criterion is not met do
+  for vi \in { v1, ..., vn} do
+    \phi(vi) <- {}
+    for vj \in neighbor(vi) do
+      \phi(vj) <- minimizeVertexGroup( \phi(vj), neighbor(vj) \ vi)
+    endfor
+    \phi(vi) <- minimizeVertexGroup( V(G) \ \bigcup_{i=1}^n \phi(vi), neighbor(vi))
+  endfor
+end while
