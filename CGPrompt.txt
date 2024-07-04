@@ -1,0 +1,112 @@
+1. Python で networkx モジュールを使ってグラフの操作をするプログラムを作りたい。
+
+2. 無向グラフHとキンググラフGの２つがある。
+
+3. Hのノード数をnとして、Gは (n-1) x n のノードを持つ。
+
+4. グラフHの初期化コードは以下の通り。
+
+H = nx.Graph()
+H.add_nodes_from([0, 1, 2, 3, 4])
+H.add_edges_from([(0, 1), (0, 2), (0, 4), (1, 2), (2, 3), (2, 4), (3, 4)])
+n = H.number_of_nodes()   # グラフHのノード数
+H_nodes = list(H.nodes()) # グラフHのノードリスト
+
+5. グラフGのノードにはグラフHのノード番号に対応する属性 val が追加されている。グラフGの初期化コードは以下の通り。
+
+G = nx.grid_2d_graph(n-1, n)
+
+# 斜め方向のエッジを追加
+for x, y in G.nodes():
+    if (x+1, y+1) in G.nodes():
+        G.add_edge((x, y), (x+1, y+1))
+    if (x+1, y-1) in G.nodes():
+        G.add_edge((x, y), (x+1, y-1))
+
+for x, y in G.nodes():
+    set_node_val(G, (x, y), '')
+
+set_node_val(G, (0, 1), 1)
+set_node_val(G, (0, 2), 2)
+set_node_val(G, (0, 3), 3)
+set_node_val(G, (0, 4), 4)
+
+set_node_val(G, (1, 2), 3)
+set_node_val(G, (1, 3), 2)
+
+set_node_val(G, (2, 1), 3)
+set_node_val(G, (3, 0), 3)
+
+6. このプログラムのための関数 mVG(G, nodesG, nodesH) を定義したい。ここでGはグラフG、nodesG は G の頂点集合, nodesH は H の頂点集合。
+
+7. val値が nodesG の任意の頂点vと同じものからなるGのサブグラフを subG1、val値が nodesH の任意の頂点vと同じものからなるGのサブグラフを subG2 とする。
+
+8. グラフGの頂点のうち val=v であるような頂点集合を \phi(v) とする。
+mVG はまず、subG2の頂点集合内の任意の頂点 v2 の下で、subG1 の各頂点から \phi(v2) 内のもっとも近い頂点までの距離を求め、これをテーブルとして保存する。ただし、グラフGのすべての辺は距離1とする。
+
+9. mVGでは、この距離テーブルに基づき、すべての\phi(v2)から到達可能な頂点v*を導出する。この頂点v*の導出がテーブル作成の目的なので、G内のすべての頂点に対しての距離を求める必要はなく、幅優先探索によりv*が発見され次第、探索を終了して良い。
+
+10. mVGでは、subG2内の任意の頂点v2に対し、頂点v*は\phi(v2)内のいずれかの頂点へ到達する経路がある。これらの経路に含まれる頂点の和集合xiを求める。
+
+11. 現在の mVG のコードは以下の通り。
+
+def bfs_shortest_path(G, source_nodes, target_nodes):
+    visited = set()
+    queue = deque([(node, 0) for node in source_nodes])
+    
+    while queue:
+        current_node, distance = queue.popleft()
+        if current_node in target_nodes:
+            return current_node, distance
+        
+        if current_node not in visited:
+            visited.add(current_node)
+            for neighbor in G.neighbors(current_node):
+                if neighbor not in visited:
+                    queue.append((neighbor, distance + 1))
+    return None, float('inf')
+
+def mVG(G, nodesG, nodesH):
+    nodesH_G = [node for node in G.nodes() if G.nodes[node]['val'] in nodesH]
+
+    subG1_vals = {G.nodes[node]['val'] for node in nodesG}
+    subG1 = G.subgraph([node for node in G if G.nodes[node]['val'] in subG1_vals])
+
+    distance_table = defaultdict(dict)
+    for node in nodesH_G:
+        val = G.nodes[node]['val']
+        phi_val = get_nodes_with_val(G, val)
+        for target_node in nodesG:
+            nearest_node, distance = bfs_shortest_path(G, phi_val, [target_node])
+            distance_table[node][target_node] = distance
+            
+    # Debugging: Print the distance table
+    print("Distance Table:")
+    for key, value in distance_table.items():
+        print(f"{key}: {value}")
+
+    v_star = []
+    for distance in range(1, len(G)):
+        for node in subG1.nodes:
+            if all(distance_table[target][node] <= distance for target in nodesH_G):
+                v_star.append(node)
+        if v_star:
+            break
+        
+    # Debugging: Print v_star
+    print("v_star:", v_star)
+
+    xi = set(v_star)
+    for node in nodesH_G:
+        if node not in nodesG:  # nodesG に含まれない nodesH_G の頂点を対象とする
+            new_xi_nodes = set()
+            for target_node in v_star:
+                path = nx.shortest_path(G, source=node, target=target_node)
+                new_xi_nodes.update(path)
+            xi.update(new_xi_nodes)
+
+    xi &= set(nodesG)  # xi に nodesG の頂点のみを残す
+
+    return xi
+  
+12. 後半の xi を生成する部分にバグがありそう。この部分は、nodesH 内の任意の頂点 v に対し、頂点 v_star は val=v を持つ G のいずれかの頂点へ到達する経路の頂点の和集合を求め、それを xi としている。
