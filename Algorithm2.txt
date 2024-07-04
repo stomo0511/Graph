@@ -1,4 +1,4 @@
-Input: graph G, graph G', vertex array nodes
+Input: graph G, nodes of graph G', vertex array nodes
 Output: vertex array \xi in G'
 
 for d=1,2,... do
@@ -7,10 +7,10 @@ for d=1,2,... do
   endfor
   if a vertex in G' has distance from \phi(v) for all v \in nodes
   then
-    the vertex is called v^* and break from this loop
+    the vertex is called v_star and break from this loop
   endif
 endfor
-\xi <- { v* }
+\xi <- { v_star }
 for v \in nodes do
   \xi <- \xi \bigcup verteces in the shortest path from a vertex in \xi to a vertex in \phi(v)
 endfor
